@@ -1,4 +1,5 @@
 import { Bell, Search, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,14 +10,27 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function Header() {
+  const navigate = useNavigate();
+  const { profile, roles, signOut } = useAuth();
+
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
   });
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/login");
+  };
+
+  const displayRole = roles.length > 0
+    ? roles[0].charAt(0).toUpperCase() + roles[0].slice(1)
+    : "Staff";
 
   return (
     <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-6 sticky top-0 z-40">
@@ -49,8 +63,8 @@ export function Header() {
                 <User size={16} className="text-navy-dark" />
               </div>
               <div className="hidden md:flex flex-col items-start">
-                <span className="text-sm font-medium">Admin</span>
-                <span className="text-xs text-muted-foreground">Manager</span>
+                <span className="text-sm font-medium">{profile?.full_name || "Staff"}</span>
+                <span className="text-xs text-muted-foreground">{displayRole}</span>
               </div>
             </Button>
           </DropdownMenuTrigger>
@@ -60,7 +74,9 @@ export function Header() {
             <DropdownMenuItem>Profile</DropdownMenuItem>
             <DropdownMenuItem>Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">Logout</DropdownMenuItem>
+            <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
+              Logout
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
