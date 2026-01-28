@@ -14,6 +14,7 @@ import Inventory from "./pages/Inventory";
 import Corporate from "./pages/Corporate";
 import Accounts from "./pages/Accounts";
 import Reports from "./pages/Reports";
+import StaffManagement from "./pages/StaffManagement";
 import Login from "./pages/Login";
 import Unauthorized from "./pages/Unauthorized";
 import NotFound from "./pages/NotFound";
@@ -37,6 +38,13 @@ const App = () => (
               <Route element={<MainLayout />}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/reports" element={<Reports />} />
+              </Route>
+            </Route>
+
+            {/* Staff Management - Manager only */}
+            <Route element={<ProtectedRoute allowedRoles={["manager"]} />}>
+              <Route element={<MainLayout />}>
+                <Route path="/staff" element={<StaffManagement />} />
               </Route>
             </Route>
 

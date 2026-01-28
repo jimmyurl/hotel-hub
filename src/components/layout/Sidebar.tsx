@@ -39,12 +39,18 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut, profile } = useAuth();
+  const { signOut, profile, isManager } = useAuth();
 
   const handleLogout = async () => {
     await signOut();
     navigate("/login");
   };
+
+  // Filter bottom items based on role
+  const visibleBottomItems = bottomItems.filter((item) => {
+    if (item.path === "/staff") return isManager;
+    return true;
+  });
 
   return (
     <motion.aside
@@ -120,7 +126,7 @@ export function Sidebar() {
 
       {/* Bottom Section */}
       <div className="py-4 px-3 border-t border-sidebar-border space-y-1">
-        {bottomItems.map((item) => {
+        {visibleBottomItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <Link
