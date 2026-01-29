@@ -1,27 +1,117 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { BedDouble, UserPlus, LogOut, Search, Calendar, Filter } from "lucide-react";
+import { BedDouble, UserPlus, LogOut, Search, Filter } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RoomGrid } from "@/components/reception/RoomGrid";
+import { BookingsTable } from "@/components/reception/BookingsTable";
+import { CheckInDialog } from "@/components/reception/CheckInDialog";
 
-const mockGuests = [
-  { id: 1, name: "John Doe", room: "102", checkIn: "2025-01-24", checkOut: "2025-01-28", status: "checked-in", type: "Individual" },
-  { id: 2, name: "Jane Smith", room: "104", checkIn: "2025-01-25", checkOut: "2025-01-27", status: "checked-in", type: "Individual" },
-  { id: 3, name: "ABC Corporation", room: "201", checkIn: "2025-01-20", checkOut: "2025-01-30", status: "checked-in", type: "Corporate" },
-  { id: 4, name: "VIP Guest", room: "204", checkIn: "2025-01-26", checkOut: "2025-01-30", status: "checked-in", type: "VIP" },
-  { id: 5, name: "Tourist Group", room: "206", checkIn: "2025-01-26", checkOut: "2025-01-26", status: "checking-out", type: "Group" },
-  { id: 6, name: "Business Traveler", room: "103", checkIn: "2025-01-27", checkOut: "2025-01-29", status: "reserved", type: "Individual" },
-];
+type RoomStatus = "available" | "occupied" | "reserved" | "maintenance" | "cleaning";
+type RoomType = "standard" | "deluxe" | "suite" | "executive";
+type BookingStatus = "pending" | "confirmed" | "checked_in" | "checked_out" | "cancelled";
+type GuestType = "individual" | "corporate" | "vip" | "group";
+
+interface Room {
+  id: string;
+  room_number: string;
+  room_type: RoomType;
+  floor: number;
+  base_rate: number;
+  status: RoomStatus;
+  amenities: string[];
+  notes: string | null;
+}
+
+interface Booking {
+  id: string;
+  booking_ref: string;
+  check_in_date: string;
+  check_out_date: string;
+  status: BookingStatus;
+  total_amount: number;
+  amount_paid: number;
+  adults: number;
+  children: number;
+  guests: {
+    id: string;
+    full_name: string;
+    guest_type: GuestType;
+  } | null;
+  rooms: {
+    id: string;
+    room_number: string;
+  } | null;
+}
 
 const Reception = () => {
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [checkInOpen, setCheckInOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Fetch rooms
+  const { data: rooms = [], isLoading: roomsLoading } = useQuery({
+    queryKey: ["rooms"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("rooms")
+        .select("*")
+        .order("room_number");
+
+      if (error) throw error;
+      return (data || []) as Room[];
+    },
+  });
+
+  // Fetch active bookings
+  const { data: bookings = [], isLoading: bookingsLoading } = useQuery({
+    queryKey: ["bookings"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("bookings")
+        .select(`
+          *,
+          guests (id, full_name, guest_type),
+          rooms (id, room_number)
+        `)
+        .in("status", ["pending", "confirmed", "checked_in"])
+        .order("check_in_date", { ascending: false });
+
+      if (error) throw error;
+      return (data || []) as Booking[];
+    },
+  });
+
+  // Calculate stats
+  const stats = {
+    total: rooms.length,
+    occupied: rooms.filter((r) => r.status === "occupied").length,
+    available: rooms.filter((r) => r.status === "available").length,
+    checkoutsToday: bookings.filter(
+      (b) =>
+        b.status === "checked_in" &&
+        b.check_out_date === new Date().toISOString().split("T")[0]
+    ).length,
+  };
+
+  const handleRoomClick = (room: Room) => {
+    if (room.status === "available") {
+      setSelectedRoom(room);
+      setCheckInOpen(true);
+    }
+  };
+
+  // Filter bookings by search
+  const filteredBookings = bookings.filter(
+    (b) =>
+      b.booking_ref.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      b.guests?.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      b.rooms?.room_number.includes(searchQuery)
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -32,16 +122,23 @@ const Reception = () => {
       >
         <div>
           <h1 className="font-serif text-3xl font-bold">Reception</h1>
-          <p className="text-muted-foreground">Manage guest check-ins, check-outs, and reservations</p>
+          <p className="text-muted-foreground">
+            Manage guest check-ins, check-outs, and reservations
+          </p>
         </div>
         <div className="flex gap-3">
-          <Button className="gradient-gold text-navy-dark shadow-gold hover:opacity-90">
+          <Button
+            className="gradient-gold text-navy-dark shadow-gold hover:opacity-90"
+            onClick={() => {
+              const availableRoom = rooms.find((r) => r.status === "available");
+              if (availableRoom) {
+                setSelectedRoom(availableRoom);
+                setCheckInOpen(true);
+              }
+            }}
+          >
             <UserPlus className="mr-2" size={18} />
             New Check-in
-          </Button>
-          <Button variant="outline">
-            <Calendar className="mr-2" size={18} />
-            Reservations
           </Button>
         </div>
       </motion.div>
@@ -49,10 +146,10 @@ const Reception = () => {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Rooms", value: "30", icon: BedDouble, color: "bg-navy/10 text-navy" },
-          { label: "Occupied", value: "24", icon: UserPlus, color: "bg-accent/10 text-accent" },
-          { label: "Available", value: "4", icon: BedDouble, color: "bg-success/10 text-success" },
-          { label: "Check-outs Today", value: "5", icon: LogOut, color: "bg-info/10 text-info" },
+          { label: "Total Rooms", value: stats.total, icon: BedDouble, color: "bg-navy/10 text-navy" },
+          { label: "Occupied", value: stats.occupied, icon: UserPlus, color: "bg-accent/10 text-accent" },
+          { label: "Available", value: stats.available, icon: BedDouble, color: "bg-success/10 text-success" },
+          { label: "Check-outs Today", value: stats.checkoutsToday, icon: LogOut, color: "bg-info/10 text-info" },
         ].map((stat, index) => (
           <motion.div
             key={stat.label}
@@ -74,93 +171,68 @@ const Reception = () => {
         ))}
       </div>
 
-      {/* Guest List */}
+      {/* Main Content Tabs */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="card-elevated"
       >
-        <div className="p-6 border-b border-border">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <h2 className="font-serif text-xl font-semibold">Current Guests</h2>
-            <div className="flex gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                <Input placeholder="Search guests..." className="pl-9 w-64" />
-              </div>
-              <Button variant="outline" size="icon">
-                <Filter size={18} />
-              </Button>
-            </div>
-          </div>
-        </div>
+        <Tabs defaultValue="rooms" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="rooms">Room Status</TabsTrigger>
+            <TabsTrigger value="bookings">Current Bookings</TabsTrigger>
+          </TabsList>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Guest Name</TableHead>
-              <TableHead>Room</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Check-in</TableHead>
-              <TableHead>Check-out</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {mockGuests.map((guest) => (
-              <TableRow key={guest.id}>
-                <TableCell className="font-medium">{guest.name}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="font-mono">
-                    {guest.room}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant="secondary"
-                    className={
-                      guest.type === "VIP"
-                        ? "bg-accent/10 text-accent"
-                        : guest.type === "Corporate"
-                        ? "bg-navy/10 text-navy"
-                        : ""
-                    }
-                  >
-                    {guest.type}
-                  </Badge>
-                </TableCell>
-                <TableCell>{guest.checkIn}</TableCell>
-                <TableCell>{guest.checkOut}</TableCell>
-                <TableCell>
-                  <Badge
-                    className={
-                      guest.status === "checked-in"
-                        ? "bg-success/10 text-success border-success/30"
-                        : guest.status === "checking-out"
-                        ? "bg-warning/10 text-warning border-warning/30"
-                        : "bg-info/10 text-info border-info/30"
-                    }
-                  >
-                    {guest.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="sm">
-                    View
-                  </Button>
-                  {guest.status === "checked-in" && (
-                    <Button variant="ghost" size="sm" className="text-destructive">
-                      Check-out
+          <TabsContent value="rooms">
+            <RoomGrid
+              rooms={rooms}
+              onRoomClick={handleRoomClick}
+              isLoading={roomsLoading}
+            />
+          </TabsContent>
+
+          <TabsContent value="bookings">
+            <div className="card-elevated">
+              <div className="p-6 border-b border-border">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <h2 className="font-serif text-xl font-semibold">
+                    Active Bookings
+                  </h2>
+                  <div className="flex gap-3">
+                    <div className="relative">
+                      <Search
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                        size={16}
+                      />
+                      <Input
+                        placeholder="Search bookings..."
+                        className="pl-9 w-64"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </div>
+                    <Button variant="outline" size="icon">
+                      <Filter size={18} />
                     </Button>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                  </div>
+                </div>
+              </div>
+
+              <BookingsTable
+                bookings={filteredBookings}
+                isLoading={bookingsLoading}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
       </motion.div>
+
+      {/* Check-in Dialog */}
+      <CheckInDialog
+        room={selectedRoom}
+        open={checkInOpen}
+        onOpenChange={setCheckInOpen}
+      />
     </div>
   );
 };

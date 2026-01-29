@@ -14,6 +14,117 @@ export type Database = {
   }
   public: {
     Tables: {
+      bookings: {
+        Row: {
+          adults: number
+          amount_paid: number
+          booking_ref: string
+          check_in_date: string
+          check_out_date: string
+          children: number
+          created_at: string
+          created_by: string | null
+          guest_id: string | null
+          id: string
+          room_id: string | null
+          special_requests: string | null
+          status: Database["public"]["Enums"]["booking_status"]
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          adults?: number
+          amount_paid?: number
+          booking_ref: string
+          check_in_date: string
+          check_out_date: string
+          children?: number
+          created_at?: string
+          created_by?: string | null
+          guest_id?: string | null
+          id?: string
+          room_id?: string | null
+          special_requests?: string | null
+          status?: Database["public"]["Enums"]["booking_status"]
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          adults?: number
+          amount_paid?: number
+          booking_ref?: string
+          check_in_date?: string
+          check_out_date?: string
+          children?: number
+          created_at?: string
+          created_by?: string | null
+          guest_id?: string | null
+          id?: string
+          room_id?: string | null
+          special_requests?: string | null
+          status?: Database["public"]["Enums"]["booking_status"]
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guests: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string | null
+          full_name: string
+          guest_type: Database["public"]["Enums"]["guest_type"]
+          id: string
+          id_number: string | null
+          id_type: string | null
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          full_name: string
+          guest_type?: Database["public"]["Enums"]["guest_type"]
+          id?: string
+          id_number?: string | null
+          id_type?: string | null
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          guest_type?: Database["public"]["Enums"]["guest_type"]
+          id?: string
+          id_number?: string | null
+          id_type?: string | null
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -50,6 +161,45 @@ export type Database = {
         }
         Relationships: []
       }
+      rooms: {
+        Row: {
+          amenities: string[] | null
+          base_rate: number
+          created_at: string
+          floor: number
+          id: string
+          notes: string | null
+          room_number: string
+          room_type: Database["public"]["Enums"]["room_type"]
+          status: Database["public"]["Enums"]["room_status"]
+          updated_at: string
+        }
+        Insert: {
+          amenities?: string[] | null
+          base_rate?: number
+          created_at?: string
+          floor?: number
+          id?: string
+          notes?: string | null
+          room_number: string
+          room_type?: Database["public"]["Enums"]["room_type"]
+          status?: Database["public"]["Enums"]["room_status"]
+          updated_at?: string
+        }
+        Update: {
+          amenities?: string[] | null
+          base_rate?: number
+          created_at?: string
+          floor?: number
+          id?: string
+          notes?: string | null
+          room_number?: string
+          room_type?: Database["public"]["Enums"]["room_type"]
+          status?: Database["public"]["Enums"]["room_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -76,6 +226,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_reception_access: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -93,6 +244,20 @@ export type Database = {
         | "bar"
         | "inventory"
         | "accounts"
+      booking_status:
+        | "pending"
+        | "confirmed"
+        | "checked_in"
+        | "checked_out"
+        | "cancelled"
+      guest_type: "individual" | "corporate" | "vip" | "group"
+      room_status:
+        | "available"
+        | "occupied"
+        | "reserved"
+        | "maintenance"
+        | "cleaning"
+      room_type: "standard" | "deluxe" | "suite" | "executive"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -228,6 +393,22 @@ export const Constants = {
         "inventory",
         "accounts",
       ],
+      booking_status: [
+        "pending",
+        "confirmed",
+        "checked_in",
+        "checked_out",
+        "cancelled",
+      ],
+      guest_type: ["individual", "corporate", "vip", "group"],
+      room_status: [
+        "available",
+        "occupied",
+        "reserved",
+        "maintenance",
+        "cleaning",
+      ],
+      room_type: ["standard", "deluxe", "suite", "executive"],
     },
   },
 } as const
