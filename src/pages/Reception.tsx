@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { BedDouble, UserPlus, LogOut, Search, Filter } from "lucide-react";
+import { BedDouble, UserPlus, LogOut, Search, Filter, CalendarPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RoomGrid } from "@/components/reception/RoomGrid";
 import { BookingsTable } from "@/components/reception/BookingsTable";
 import { CheckInDialog } from "@/components/reception/CheckInDialog";
+import { ReservationDialog } from "@/components/reception/ReservationDialog";
 
 type RoomStatus = "available" | "occupied" | "reserved" | "maintenance" | "cleaning";
 type RoomType = "standard" | "deluxe" | "suite" | "executive";
@@ -50,6 +51,7 @@ interface Booking {
 const Reception = () => {
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [checkInOpen, setCheckInOpen] = useState(false);
+  const [reservationOpen, setReservationOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch rooms
@@ -127,6 +129,13 @@ const Reception = () => {
           </p>
         </div>
         <div className="flex gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setReservationOpen(true)}
+          >
+            <CalendarPlus className="mr-2" size={18} />
+            New Reservation
+          </Button>
           <Button
             className="gradient-gold text-navy-dark shadow-gold hover:opacity-90"
             onClick={() => {
@@ -232,6 +241,12 @@ const Reception = () => {
         room={selectedRoom}
         open={checkInOpen}
         onOpenChange={setCheckInOpen}
+      />
+
+      {/* Reservation Dialog */}
+      <ReservationDialog
+        open={reservationOpen}
+        onOpenChange={setReservationOpen}
       />
     </div>
   );
